@@ -71,9 +71,9 @@ export class GameScene extends Phaser.Scene {
     const stage = STAGES[this.stageId] || STAGES.localhost;
 
     this.cameras.main.setBackgroundColor(stage.bgTint);
-    // 카메라 블룸: 어두운 배경에 네온이 뜨게(전체 1패스 → 모든 밝은 요소 글로우, 풀별 글로우보다 쌈)
+    // 카메라 블룸: 네온만 살짝 뜨게. offset 0 = 방향 번짐 없음, strength 낮춤(전체 흐릿함 방지).
     const cam = this.cameras.main as any;
-    if (cam.postFX) cam.postFX.addBloom(0xffffff, 1, 1, 1.1, 1.05);
+    if (cam.postFX) cam.postFX.addBloom(0xffffff, 0, 0, 0.45, 1.05);
     const { width: W, height: H } = this.scale;
     this.grid = this.add.tileSprite(W / 2, H / 2, W, H, 'grid').setScrollFactor(0).setDepth(0).setAlpha(0.5);
     this.fx = new GameFx(this);

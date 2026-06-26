@@ -36,7 +36,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       W: kb.addKey('W'), A: kb.addKey('A'), S: kb.addKey('S'), D: kb.addKey('D'),
       up: kb.addKey('UP'), down: kb.addKey('DOWN'), left: kb.addKey('LEFT'), right: kb.addKey('RIGHT'),
     };
-    scene.tweens.add({ targets: this, alpha: 0.45, duration: 500, yoyo: true, repeat: -1 });
+    scene.tweens.add({ targets: this, alpha: 0.72, duration: 600, yoyo: true, repeat: -1 });
   }
 
   // 패시브/메타 변경 후 스탯 재반영

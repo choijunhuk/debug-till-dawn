@@ -11,11 +11,11 @@ export class GameFx {
   // 맵별 정체성: 스캔라인 + 비네팅 + 떠다니는 코드 글리프(parallax 코드 레인).
   setupMapFx(stageId: string, W: number, H: number) {
     const cfg = ({
-      localhost: { p: 0x6a9955, scan: 0.05, vig: 0.50, count: 16 },
-      staging: { p: 0x4ec9b0, scan: 0.07, vig: 0.55, count: 20 },
-      production: { p: 0xff5c5c, scan: 0.11, vig: 0.72, count: 26 },
+      localhost: { p: 0x6a9955, scan: 0.04, vig: 0.32, count: 16 },
+      staging: { p: 0x4ec9b0, scan: 0.05, vig: 0.38, count: 20 },
+      production: { p: 0xff5c5c, scan: 0.08, vig: 0.50, count: 26 },
     } as Record<string, { p: number; scan: number; vig: number; count: number }>)[stageId]
-      || { p: 0x6a9955, scan: 0.05, vig: 0.50, count: 16 };
+      || { p: 0x6a9955, scan: 0.04, vig: 0.32, count: 16 };
 
     this.scanlines = this.scene.add.tileSprite(W / 2, H / 2, W, H, 'scanline').setScrollFactor(0).setDepth(49).setAlpha(cfg.scan);
     this.scene.add.image(W / 2, H / 2, 'vignette').setScrollFactor(0).setDepth(50).setDisplaySize(W * 1.05, H * 1.05).setAlpha(cfg.vig);
