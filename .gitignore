@@ -3,3 +3,6 @@ dist/
 .omc/
 .DS_Store
 *.log
+
+# 컴파일 산출물 (entry는 .ts)
+src/**/*.js
