@@ -8,6 +8,8 @@ import { XPGem } from '../entities/XPGem';
 import { Pickup } from '../entities/Pickup';
 import { HUD } from '../ui/HUD';
 import { LevelUpCards } from '../ui/LevelUpCards';
+import { BuildPanel } from '../ui/BuildPanel';
+import { GameFx } from '../ui/GameFx';
 import { BALANCE, xpForLevel } from '../data/balance';
 import { CLASSES } from '../data/classes';
 import { STAGES } from '../data/stages';
@@ -32,13 +34,13 @@ export class GameScene extends Phaser.Scene {
   private gems!: Phaser.Physics.Arcade.Group;
   private pickups!: Phaser.Physics.Arcade.Group;
   private grid!: Phaser.GameObjects.TileSprite;
-  private scanlines!: Phaser.GameObjects.TileSprite;
-  private codeBits: { t: Phaser.GameObjects.Text; sp: number }[] = [];
+  private fx!: GameFx;
   private enemyHpBars!: Phaser.GameObjects.Graphics;
   private bossOutline?: Phaser.GameObjects.Arc;
   private bossBadge?: Phaser.GameObjects.Text;
   private hud!: HUD;
   private cards!: LevelUpCards;
+  private buildPanel!: BuildPanel;
 
   private stageId = 'localhost';
   private xp = 0; private level = 1; private kills = 0;
@@ -74,7 +76,8 @@ export class GameScene extends Phaser.Scene {
     if (cam.postFX) cam.postFX.addBloom(0xffffff, 1, 1, 1.1, 1.05);
     const { width: W, height: H } = this.scale;
     this.grid = this.add.tileSprite(W / 2, H / 2, W, H, 'grid').setScrollFactor(0).setDepth(0).setAlpha(0.5);
-    this.setupMapFx(this.stageId, W, H);
+    this.fx = new GameFx(this);
+    this.fx.setupMapFx(this.stageId, W, H);
 
     this.stats = new PlayerStats(cls);
     this.player = new Player(this, 0, 0, this.stats, cls.color);
@@ -100,10 +103,58 @@ export class GameScene extends Phaser.Scene {
     this.enemyHpBars = this.add.graphics().setDepth(6);
     this.hud = new HUD(this, stage.name);
     this.cards = new LevelUpCards(this);
+    this.buildPanel = new BuildPanel(this);
+    // TAB: 빌드 패널 토글(읽기전용 오버레이, 게임 미정지). 페이지 스크롤 방지.
+    this.input.keyboard!.on('keydown-TAB', (e: KeyboardEvent) => {
+      e.preventDefault?.();
+      this.buildPanel.toggle();
+      this.buildPanel.refresh(this.weapons, this.stats);
+    });
 
     this.startTime = this.time.now;
     this.lastHitTime = this.time.now;
     this.lastRegen = this.time.now;
+
+    this.showTutorial();
+  }
+
+  // 첫 플레이 온보딩: 브라우저당 1회(localStorage). 게임은 뒤에서 계속 진행(일시정지 X).
+  private showTutorial() {
+    if (localStorage.getItem('dtd_seen_tutorial')) return;
+    localStorage.setItem('dtd_seen_tutorial', '1');
+
+    const { width: W, height: H } = this.scale;
+    const lines = [
+      'WASD / 방향키 — 이동',
+      '무기는 자동 발사',
+      '초록 XP 젬 수집 → 레벨업',
+      '보스를 모두 처치하면 클리어',
+    ].join('\n');
+
+    const panel = this.add.rectangle(W / 2, H / 2, 360, 150, 0x0d1117, 0.85)
+      .setStrokeStyle(1, 0x4ec9b0).setScrollFactor(0).setDepth(300);
+    const text = this.add.text(W / 2, H / 2, lines, {
+      fontFamily: 'monospace', fontSize: '15px', color: '#dcdcaa', align: 'center', lineSpacing: 8,
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(301);
+
+    const dismiss = () => {
+      if (!panel.active) return;
+      this.tweens.add({
+        targets: [panel, text], alpha: 0, duration: 400,
+        onComplete: () => { panel.destroy(); text.destroy(); },
+      });
+    };
+    // 첫 이동키 또는 클릭 시 즉시 해제, 아니면 ~5초 후 자동 페이드아웃.
+    this.input.keyboard?.once('keydown-W', dismiss);
+    this.input.keyboard?.once('keydown-A', dismiss);
+    this.input.keyboard?.once('keydown-S', dismiss);
+    this.input.keyboard?.once('keydown-D', dismiss);
+    this.input.keyboard?.once('keydown-UP', dismiss);
+    this.input.keyboard?.once('keydown-LEFT', dismiss);
+    this.input.keyboard?.once('keydown-DOWN', dismiss);
+    this.input.keyboard?.once('keydown-RIGHT', dismiss);
+    this.input.once('pointerdown', dismiss);
+    this.time.delayedCall(5000, dismiss);
   }
 
   update(_: number, delta: number) {
@@ -111,9 +162,7 @@ export class GameScene extends Phaser.Scene {
     this.grid.tilePositionX = this.cameras.main.scrollX;
     this.grid.tilePositionY = this.cameras.main.scrollY;
     // 살아있는 배경: 스캔라인 + 코드 레인 드리프트(일시정지 중에도)
-    this.scanlines.tilePositionY += 0.3;
-    const Hh = this.scale.height, Ww = this.scale.width;
-    for (const b of this.codeBits) { b.t.y += b.sp; if (b.t.y > Hh + 12) { b.t.y = -12; b.t.x = Math.random() * Ww; } }
+    this.fx.tickAmbient();
     if (this.paused) { this.player.setVelocity(0, 0); return; }
 
     const now = this.time.now;
@@ -169,6 +218,13 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.checkAchievements(elapsed, now);
+    // 목표 HUD: 아직 안 나온 보스 중 가장 이른 것까지의 카운트다운.
+    const bosses = STAGES[this.stageId].bosses;
+    let nextBossInMs: number | null = null;
+    for (const b of bosses) {
+      if (b.time > elapsed && (nextBossInMs == null || b.time - elapsed < nextBossInMs)) nextBossInMs = b.time - elapsed;
+    }
+    this.hud.updateObjective(nextBossInMs, this.bossesKilled, bosses.length);
     this.hud.update(this.player.hp, this.player.maxHp, this.xp, xpForLevel(this.level), this.level, this.kills, elapsed);
     if (this.player.hp <= 0) this.onDeath(elapsed);
   }
@@ -217,7 +273,7 @@ export class GameScene extends Phaser.Scene {
       const a = Phaser.Math.Angle.Between(opts.from.x, opts.from.y, e.x, e.y);
       e.x += Math.cos(a) * opts.knock * 0.06; e.y += Math.sin(a) * opts.knock * 0.06;
     }
-    if (crit || e.def.boss) this.addDmgText(e.x, e.y, amount, crit);
+    if (crit || e.def.boss) this.fx.addDmgText(e.x, e.y, amount, crit);
     if (e.takeDamage(amount)) this.killEnemy(e);
   }
 
@@ -238,30 +294,8 @@ export class GameScene extends Phaser.Scene {
       }
     }
     if (def.boss) this.onBossKilled(def.id);
-    this.killBurst(x, y, def.color);
-    this.emitBits(x, y, def.color);
-  }
-
-  // 사망 = 0/1 텍스트가 흩어짐. ponytail: 3개/킬, 대량킬(nuke) 시 누적되면 줄일 것.
-  private emitBits(x: number, y: number, color: number) {
-    const hex = '#' + color.toString(16).padStart(6, '0');
-    for (let i = 0; i < 3; i++) {
-      const t = this.add.text(x, y, Math.random() < 0.5 ? '0' : '1', {
-        fontFamily: 'monospace', fontSize: '12px', color: hex,
-      }).setOrigin(0.5).setDepth(15);
-      const a = Math.random() * Math.PI * 2, d = 18 + Math.random() * 24;
-      this.tweens.add({
-        targets: t, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, alpha: 0,
-        duration: 280 + Math.random() * 220, ease: 'Quad.easeOut', onComplete: () => t.destroy(),
-      });
-    }
-  }
-
-  // 히트스톱: 큰 순간(보스 사망)만. 물리 일시정지 후 실시간 타이머로 복귀(timeScale 함정 회피).
-  private hitstop(ms = 60) {
-    if (this.paused || this.over) return;
-    this.physics.pause();
-    window.setTimeout(() => { if (!this.paused && !this.over) this.physics.resume(); }, ms);
+    this.fx.killBurst(x, y, def.color);
+    this.fx.emitBits(x, y, def.color);
   }
 
   private onBossKilled(id: string) {
@@ -270,7 +304,7 @@ export class GameScene extends Phaser.Scene {
     this.bossOutline?.destroy(); this.bossOutline = undefined;
     this.bossBadge?.destroy(); this.bossBadge = undefined;
     this.bossesKilled++;
-    this.hitstop(90); // 보스 처치 묵직하게
+    this.fx.hitstop(90, () => !this.paused && !this.over); // 보스 처치 묵직하게
     this.cameras.main.flash(200, 80, 255, 80);
     this.cameras.main.shake(300, 0.01);
     if (id === 'prodbug') this.grant('incident');
@@ -411,38 +445,10 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // ---- 폭발/이펙트 ----
+  // ---- 폭발 ----
   private explode(x: number, y: number, r: number, baseDamage: number, color: number) {
     this.enemiesInRadius(x, y, r).forEach((e) => this.hitEnemy(e, baseDamage));
-    const radius = Math.min(r, 400);
-    const c = this.add.circle(x, y, radius, color, 0.3).setDepth(6).setScale(0.2);
-    this.tweens.add({ targets: c, scale: 1, alpha: 0, duration: 300, onComplete: () => c.destroy() });
-  }
-  private killBurst(x: number, y: number, color: number) {
-    const c = this.add.circle(x, y, 6, color, 0.9).setDepth(6);
-    this.tweens.add({ targets: c, scale: 2, alpha: 0, duration: 180, onComplete: () => c.destroy() });
-  }
-  // 맵별 정체성: 스캔라인 + 비네팅 + 떠다니는 코드 글리프(parallax 코드 레인).
-  private setupMapFx(stageId: string, W: number, H: number) {
-    const cfg = ({
-      localhost: { p: 0x6a9955, scan: 0.05, vig: 0.50, count: 16 },
-      staging: { p: 0x4ec9b0, scan: 0.07, vig: 0.55, count: 20 },
-      production: { p: 0xff5c5c, scan: 0.11, vig: 0.72, count: 26 },
-    } as Record<string, { p: number; scan: number; vig: number; count: number }>)[stageId]
-      || { p: 0x6a9955, scan: 0.05, vig: 0.50, count: 16 };
-
-    this.scanlines = this.add.tileSprite(W / 2, H / 2, W, H, 'scanline').setScrollFactor(0).setDepth(49).setAlpha(cfg.scan);
-    this.add.image(W / 2, H / 2, 'vignette').setScrollFactor(0).setDepth(50).setDisplaySize(W * 1.05, H * 1.05).setAlpha(cfg.vig);
-
-    const hex = '#' + cfg.p.toString(16).padStart(6, '0');
-    const glyphs = ['0', '1', '{ }', '( )', '=>', ';', '</>', '&&', '||', '#', 'fn', '01'];
-    this.codeBits = [];
-    for (let i = 0; i < cfg.count; i++) {
-      const t = this.add.text(Math.random() * W, Math.random() * H, glyphs[i % glyphs.length], {
-        fontFamily: 'monospace', fontSize: (10 + (Math.random() * 8 | 0)) + 'px', color: hex,
-      }).setScrollFactor(0).setDepth(1).setAlpha(0.08 + Math.random() * 0.10);
-      this.codeBits.push({ t, sp: 0.2 + Math.random() * 0.6 });
-    }
+    this.fx.explodeVisual(x, y, r, color);
   }
 
   // 적 체력바: 단일 Graphics 1회 redraw(수백 마리 perf). 풀피/보스는 숨김.
@@ -457,13 +463,6 @@ export class GameScene extends Phaser.Scene {
       g.fillStyle(0x0d1117, 0.85).fillRect(x - 1, y - 1, w + 2, 5);
       g.fillStyle(r > 0.3 ? 0x6ee7a0 : 0xff5c5c, 1).fillRect(x, y, w * r, 3);
     });
-  }
-
-  private addDmgText(x: number, y: number, amount: number, crit: boolean) {
-    const t = this.add.text(x, y, `${amount}`, {
-      fontFamily: 'monospace', fontSize: crit ? '18px' : '13px', color: crit ? '#ffd700' : '#ffffff',
-    }).setOrigin(0.5).setDepth(20);
-    this.tweens.add({ targets: t, y: y - 30, alpha: 0, duration: 600, onComplete: () => t.destroy() });
   }
 
   // ---- 업적 ----

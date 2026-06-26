@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { CLASSES } from '../data/classes';
 import { STAGES } from '../data/stages';
 import { MetaProgress } from '../systems/MetaProgress';
+import { UNLOCKS } from '../data/metaUpgrades';
 
 // 직군 + 배포환경(맵) 선택 → Game. 잠긴 항목은 메타에서 해금.
 export class ClassSelectScene extends Phaser.Scene {
@@ -55,6 +56,11 @@ export class ClassSelectScene extends Phaser.Scene {
         box.setInteractive({ useHandCursor: true }).on('pointerdown', () => pick(it.id));
         this.cardRefs.push({ id: it.id, box, group: sel });
       } else {
+        const entry = UNLOCKS[it.id];
+        const costLabel = entry ? `🔒 ${entry.cost} RP · 상점에서 해금` : '🔒';
+        this.add.text(x, y + 30, costLabel, {
+          fontFamily: 'monospace', fontSize: '11px', color: '#f0883e',
+        }).setOrigin(0.5);
         box.setAlpha(0.4);
       }
     });

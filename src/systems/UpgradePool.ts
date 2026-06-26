@@ -28,9 +28,17 @@ export function buildUpgradeOptions(
   // 무기 강화(보유, 비최대, 진화무기 제외)
   for (const w of weapons.owned) {
     if (w.def.maxLevel <= 1 || w.level >= w.def.maxLevel) continue;
+    // 진화 경로 힌트: 패시브 미보유 → 재료 안내, 패시브 보유 → 레벨업 독촉
+    let hint: string | undefined;
+    if (w.def.evolvesTo && w.def.evoPassive) {
+      const passiveName = PASSIVES[w.def.evoPassive]?.name ?? w.def.evoPassive;
+      hint = stats.hasPassive(w.def.evoPassive)
+        ? `⚡ 진화 임박: 최대레벨까지!`
+        : `⚡ 진화: + ${passiveName} 패시브`;
+    }
     pool.push({
       title: `${w.def.name} Lv.${w.level + 1}`, desc: '데미지/쿨다운/투사체 강화', color: w.def.color,
-      icon: w.def.icon, apply: () => onWeapon(w.def.id),
+      icon: w.def.icon, hint, apply: () => onWeapon(w.def.id),
     });
   }
 
@@ -39,9 +47,16 @@ export function buildUpgradeOptions(
     for (const def of Object.values(WEAPONS)) {
       if (def.maxLevel <= 1) continue; // 진화 결과 제외
       if (weapons.has(def.id)) continue;
+      // 진화 경로 힌트: 결과 무기명 + 필요 패시브
+      let hint: string | undefined;
+      if (def.evolvesTo && def.evoPassive) {
+        const resultName = WEAPONS[def.evolvesTo]?.name ?? def.evolvesTo;
+        const passiveName = PASSIVES[def.evoPassive]?.name ?? def.evoPassive;
+        hint = `⚡ ${resultName}(으)로 진화 가능 (+${passiveName})`;
+      }
       pool.push({
         title: `+ ${def.name}`, desc: '신규 무기 획득', color: def.color,
-        icon: def.icon, apply: () => onWeapon(def.id),
+        icon: def.icon, hint, apply: () => onWeapon(def.id),
       });
     }
   }
@@ -52,9 +67,12 @@ export function buildUpgradeOptions(
     const lvl = stats.passiveLevels[def.id] || 0;
     if (lvl >= def.maxLevel) continue;
     if (lvl === 0 && passiveCount >= 6) continue; // 새 패시브는 슬롯 제한
+    // 진화 재료 힌트: 현재 보유 무기 중 이 패시브가 진화 조건인 경우
+    const evoWeapon = weapons.owned.find(w => w.def.evoPassive === def.id);
+    const hint = evoWeapon ? `⚡ ${evoWeapon.def.name} 진화 재료` : undefined;
     pool.push({
       title: `${def.name}${lvl > 0 ? ` Lv.${lvl + 1}` : ''}`, desc: def.desc, color: def.color,
-      apply: () => onPassive(def.id),
+      hint, apply: () => onPassive(def.id),
     });
   }
 

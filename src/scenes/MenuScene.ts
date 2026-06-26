@@ -22,11 +22,13 @@ export class MenuScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '20px', color: '#dcdcaa',
     }).setOrigin(0.5);
 
-    this.button(W / 2, H * 0.62, '▶ npm run dev  [ENTER]', 0x6a9955, () => this.scene.start('ClassSelect'));
+    this.button(W / 2, H * 0.62, '▶ Start Run  [ENTER]', 0x6a9955, () => this.scene.start('ClassSelect'));
     this.button(W / 2, H * 0.72, '⚙ MetaShop  [M]', 0x58a6ff, () => this.scene.start('MetaShop'));
+    this.button(W / 2, H * 0.82, '🏆 업적  [A]', 0xe3b341, () => this.scene.start('Achievements'));
 
     this.input.keyboard!.once('keydown-ENTER', () => this.scene.start('ClassSelect'));
     this.input.keyboard!.once('keydown-M', () => this.scene.start('MetaShop'));
+    this.input.keyboard!.once('keydown-A', () => this.scene.start('Achievements'));
   }
 
   private button(x: number, y: number, label: string, color: number, cb: () => void) {

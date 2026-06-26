@@ -6,3 +6,7 @@ dist/
 
 # 컴파일 산출물 (entry는 .ts)
 src/**/*.js
+
+# 툴링 / 테스트 산출물
+.omx/
+.playwright-mcp/

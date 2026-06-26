@@ -11,6 +11,7 @@ export class HUD {
   private levelText: Phaser.GameObjects.Text;
   private killText: Phaser.GameObjects.Text;
   private bossName: Phaser.GameObjects.Text;
+  private objectiveText: Phaser.GameObjects.Text;
   private W: number;
   private bossRatio = -1;
 
@@ -27,6 +28,20 @@ export class HUD {
     this.killText = scene.add.text(this.W - 12, 12, 'kills 0', { ...style, color: '#ce9178' }).setOrigin(1, 0).setScrollFactor(0).setDepth(101);
     scene.add.text(12, 56, `@${stageName}`, { ...style, fontSize: '13px', color: '#6e7681' }).setScrollFactor(0).setDepth(101);
     this.bossName = scene.add.text(this.W / 2, 40, '', { fontFamily: 'monospace', fontSize: '14px', color: '#ff5555' }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(101);
+    // 목표 안내: 타이머 아래 중앙. 보스 등장 중엔 숨김(보스 HP바와 겹침 방지).
+    this.objectiveText = scene.add.text(this.W / 2, 58, '', { fontFamily: 'monospace', fontSize: '12px', color: '#8b949e' }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(101);
+  }
+
+  // 다음 보스 카운트다운 + 처치 현황. 보스 활성 중엔 숨김.
+  updateObjective(nextBossInMs: number | null, bossesKilled: number, totalBosses: number) {
+    if (this.bossRatio >= 0) { this.objectiveText.setText(''); return; }
+    const done = bossesKilled >= totalBosses;
+    if (done) { this.objectiveText.setText('All clear — survive!'); return; }
+    const counter = `Bosses ${bossesKilled}/${totalBosses}`;
+    if (nextBossInMs == null) { this.objectiveText.setText(counter); return; }
+    const s = Math.max(0, Math.floor(nextBossInMs / 1000));
+    const mmss = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+    this.objectiveText.setText(`Next Incident ${mmss}   ${counter}`);
   }
 
   setBoss(name: string) { this.bossRatio = 1; this.bossName.setText('☠ ' + name); }

@@ -4,6 +4,7 @@ import { logoTexture } from '../data/brandAssets';
 export interface UpgradeOption {
   title: string;
   desc: string;
+  hint?: string;  // 진화 시너지 힌트(선택)
   color: number;
   apply: () => void;
   gold?: boolean; // 진화 카드 강조
@@ -66,7 +67,16 @@ export class LevelUpCards {
       bg.on('pointerout', () => bg.setFillStyle(opt.gold ? 0x2a2410 : 0x161b22));
       bg.on('pointerdown', () => this.pick(opt, onPick));
 
-      card.add([bg, num, name, desc]);
+      const children: Phaser.GameObjects.GameObject[] = [bg, num, name, desc];
+      // 진화 시너지 힌트(있을 때만). desc(y=60) 아래 y=100에 작은 금색 텍스트.
+      if (opt.hint) {
+        const hint = this.scene.add.text(0, 100, opt.hint, {
+          fontFamily: 'monospace', fontSize: '11px', color: '#e3b341',
+          align: 'center', wordWrap: { width: cardW - 30 },
+        }).setOrigin(0.5);
+        children.push(hint);
+      }
+      card.add(children);
       c.add(card);
     });
 
