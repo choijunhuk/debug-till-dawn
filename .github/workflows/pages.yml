@@ -28,6 +28,11 @@ jobs:
           node-version: 22
           cache: npm
 
+      # ponytail: lockfile written by npm 11 marks nested optional platform
+      # deps in a format npm 10 rejects (EBADPLATFORM) — match npm major
+      - name: Use npm 11
+        run: npm install -g npm@11
+
       - name: Install dependencies
         run: npm ci
 
