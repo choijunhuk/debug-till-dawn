@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { META_UPGRADES, UNLOCKS } from '../data/metaUpgrades';
 import { MetaProgress } from '../systems/MetaProgress';
+import { AudioSystem } from '../systems/AudioSystem';
 
 // RP 영구 업그레이드 + 해금 상점.
 export class MetaShopScene extends Phaser.Scene {
@@ -13,6 +14,7 @@ export class MetaShopScene extends Phaser.Scene {
     const { width: W, height: H } = this.scale;
     this.cameras.main.setBackgroundColor('#0d1117');
     this.rows = [];
+    AudioSystem.playBgm('ambient');
 
     this.add.text(W / 2, 30, '⚙ MetaShop — 리팩토링 포인트', { fontFamily: 'monospace', fontSize: '22px', color: '#58a6ff' }).setOrigin(0.5);
     this.rpText = this.add.text(W / 2, 60, '', { fontFamily: 'monospace', fontSize: '18px', color: '#dcdcaa' }).setOrigin(0.5);
@@ -44,7 +46,7 @@ export class MetaShopScene extends Phaser.Scene {
     const label = this.add.text(60, y, '', { fontFamily: 'monospace', fontSize: '14px', color: '#c9d1d9' });
     const btn = this.add.text(W - 60, y, '', { fontFamily: 'monospace', fontSize: '14px', color: '#dcdcaa' })
       .setOrigin(1, 0).setInteractive({ useHandCursor: true });
-    btn.on('pointerdown', () => { if (state().buy()) this.refresh(); });
+    btn.on('pointerdown', () => { if (state().buy()) { AudioSystem.play('ui_click'); this.refresh(); } });
     const redraw = () => {
       const s = state();
       label.setText(s.label);

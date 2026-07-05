@@ -7,6 +7,7 @@ import { Orb } from '../entities/Orb';
 import { Minion } from '../entities/Minion';
 import type { FireOpts } from '../entities/Projectile';
 import type { PlayerStats } from './PlayerStats';
+import { AudioSystem } from './AudioSystem';
 
 // scene 이 구현해 넘기는 컨텍스트. 데미지/사망 처리는 전부 여기 통해 중앙화.
 export interface WeaponCtx {
@@ -83,6 +84,7 @@ export class WeaponSystem {
     const target = ctx.nearestEnemy(ctx.px, ctx.py);
     if (!target) return;
     w.lastFire = ctx.now;
+    AudioSystem.playFire(w.def.behavior);
     const base = Phaser.Math.Angle.Between(ctx.px, ctx.py, target.x, target.y);
     const spread = 0.16;
     for (let i = 0; i < s.count; i++) {
@@ -120,6 +122,7 @@ export class WeaponSystem {
     const s = this.statsFor(w, ctx);
     if (ctx.now - w.lastFire < s.cooldown) return;
     w.lastFire = ctx.now;
+    AudioSystem.playFire('whip');
     // 좌우 번갈아 광역 베기
     const side = (Math.floor(ctx.now / 100) % 2 === 0) ? 1 : -1;
     const cx = ctx.px + side * s.area * 0.4;
@@ -136,6 +139,11 @@ export class WeaponSystem {
     }
     w.aura.setPosition(ctx.px, ctx.py).setRadius(s.area);
     const enemies = ctx.enemiesInRadius(ctx.px, ctx.py, s.area);
+    // 오라는 지속형이라 발사 이벤트가 없음 → lastFire(오라에선 미사용)로 SFX 만 스로틀
+    if (enemies.length && ctx.now - w.lastFire > 900) {
+      w.lastFire = ctx.now;
+      AudioSystem.playFire('aura');
+    }
     for (const e of enemies) {
       if (w.def.slow) e.slowUntil = ctx.now + 400; // Docker 속박
       if (w.def.vacuum) { // GC 흡입
@@ -153,6 +161,7 @@ export class WeaponSystem {
     const s = this.statsFor(w, ctx);
     if (ctx.now - w.lastFire < s.cooldown) return;
     w.lastFire = ctx.now;
+    AudioSystem.playFire('summon');
     for (let i = 0; i < s.count; i++) {
       const m = ctx.minions.get() as Minion | null;
       if (!m) break;
@@ -165,6 +174,7 @@ export class WeaponSystem {
     const s = this.statsFor(w, ctx);
     if (ctx.now - w.lastFire < s.cooldown) return;
     w.lastFire = ctx.now;
+    AudioSystem.playFire('nuke');
     ctx.scene.cameras.main.flash(300, 255, 255, 255);
     ctx.scene.cameras.main.shake(200, 0.01);
     ctx.explode(ctx.px, ctx.py, 99999, s.damage, w.def.color);
@@ -174,6 +184,7 @@ export class WeaponSystem {
     const s = this.statsFor(w, ctx);
     if (ctx.now - w.lastFire < s.cooldown) return;
     w.lastFire = ctx.now;
+    AudioSystem.playFire('bomb');
     for (let i = 0; i < s.count; i++) {
       const ang = Math.random() * Math.PI * 2;
       const dist = 60 + Math.random() * 220;

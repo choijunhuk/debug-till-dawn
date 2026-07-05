@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { ACHIEVEMENTS } from '../data/metaUpgrades';
 import { MetaProgress } from '../systems/MetaProgress';
+import { AudioSystem } from '../systems/AudioSystem';
 
 export class AchievementsScene extends Phaser.Scene {
   constructor() { super('Achievements'); }
@@ -52,7 +53,7 @@ export class AchievementsScene extends Phaser.Scene {
     this.add.text(W / 2, H - 30, '[ESC] 메뉴로', {
       fontFamily: 'monospace', fontSize: '16px', color: '#6a9955',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true })
-      .on('pointerdown', () => this.scene.start('Menu'));
+      .on('pointerdown', () => { AudioSystem.play('ui_click'); this.scene.start('Menu'); });
 
     this.input.keyboard!.on('keydown-ESC', () => this.scene.start('Menu'));
   }

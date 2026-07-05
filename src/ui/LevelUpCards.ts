@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { logoTexture } from '../data/brandAssets';
+import { AudioSystem } from '../systems/AudioSystem';
 
 export interface UpgradeOption {
   title: string;
@@ -63,7 +64,7 @@ export class LevelUpCards {
         align: 'center', wordWrap: { width: cardW - 30 },
       }).setOrigin(0.5);
 
-      bg.on('pointerover', () => bg.setFillStyle(0x1f2630));
+      bg.on('pointerover', () => { bg.setFillStyle(0x1f2630); AudioSystem.play('ui_hover'); });
       bg.on('pointerout', () => bg.setFillStyle(opt.gold ? 0x2a2410 : 0x161b22));
       bg.on('pointerdown', () => this.pick(opt, onPick));
 
@@ -88,6 +89,7 @@ export class LevelUpCards {
   }
 
   private pick(opt: UpgradeOption, onPick: () => void) {
+    AudioSystem.play('ui_click');
     opt.apply();
     this.close();
     onPick();

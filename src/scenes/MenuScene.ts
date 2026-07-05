@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { MetaProgress } from '../systems/MetaProgress';
+import { AudioSystem } from '../systems/AudioSystem';
 import { logoTexture } from '../data/brandAssets';
 
 export class MenuScene extends Phaser.Scene {
@@ -8,6 +9,7 @@ export class MenuScene extends Phaser.Scene {
   create() {
     const { width: W, height: H } = this.scale;
     this.cameras.main.setBackgroundColor('#0d1117');
+    AudioSystem.playBgm('ambient');
 
     const gh = logoTexture('github');
     if (gh) this.add.image(W / 2, H * 0.16, gh).setDisplaySize(56, 56).setTint(0x39d353);
@@ -35,8 +37,8 @@ export class MenuScene extends Phaser.Scene {
     const t = this.add.text(x, y, label, {
       fontFamily: 'monospace', fontSize: '22px', color: '#' + color.toString(16).padStart(6, '0'),
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    t.on('pointerover', () => t.setScale(1.1));
+    t.on('pointerover', () => { t.setScale(1.1); AudioSystem.play('ui_hover'); });
     t.on('pointerout', () => t.setScale(1));
-    t.on('pointerdown', cb);
+    t.on('pointerdown', () => { AudioSystem.play('ui_click'); cb(); });
   }
 }

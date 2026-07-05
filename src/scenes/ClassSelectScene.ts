@@ -3,6 +3,7 @@ import { CLASSES } from '../data/classes';
 import { STAGES } from '../data/stages';
 import { MetaProgress } from '../systems/MetaProgress';
 import { UNLOCKS } from '../data/metaUpgrades';
+import { AudioSystem } from '../systems/AudioSystem';
 
 // 직군 + 배포환경(맵) 선택 → Game. 잠긴 항목은 메타에서 해금.
 export class ClassSelectScene extends Phaser.Scene {
@@ -28,7 +29,7 @@ export class ClassSelectScene extends Phaser.Scene {
     const start = this.add.text(W / 2, H * 0.86, '▶ START  [ENTER]', {
       fontFamily: 'monospace', fontSize: '24px', color: '#dcdcaa',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    start.on('pointerdown', () => this.launch());
+    start.on('pointerdown', () => { AudioSystem.play('ui_click'); this.launch(); });
     this.input.keyboard!.once('keydown-ENTER', () => this.launch());
     this.input.keyboard!.on('keydown-ESC', () => this.scene.start('Menu'));
 
@@ -53,7 +54,7 @@ export class ClassSelectScene extends Phaser.Scene {
         fontFamily: 'monospace', fontSize: '10px', color: '#8b949e', align: 'center', wordWrap: { width: cw - 14 },
       }).setOrigin(0.5);
       if (!it.locked) {
-        box.setInteractive({ useHandCursor: true }).on('pointerdown', () => pick(it.id));
+        box.setInteractive({ useHandCursor: true }).on('pointerdown', () => { AudioSystem.play('ui_click'); pick(it.id); });
         this.cardRefs.push({ id: it.id, box, group: sel });
       } else {
         const entry = UNLOCKS[it.id];

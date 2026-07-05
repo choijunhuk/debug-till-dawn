@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { MetaProgress } from '../systems/MetaProgress';
 import { UNLOCKS } from '../data/metaUpgrades';
+import { AudioSystem } from '../systems/AudioSystem';
 
 interface GOData {
   time: number; kills: number; level: number; rpGained: number;
@@ -14,6 +15,7 @@ export class GameOverScene extends Phaser.Scene {
   create(data: GOData) {
     const { width: W, height: H } = this.scale;
     this.cameras.main.setBackgroundColor('#0d1117');
+    AudioSystem.playBgm('ambient');
     const s = Math.floor(data.time / 1000);
     const mm = String(Math.floor(s / 60)).padStart(2, '0');
     const ss = String(s % 60).padStart(2, '0');

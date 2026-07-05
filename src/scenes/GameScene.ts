@@ -19,6 +19,7 @@ import { PlayerStats } from '../systems/PlayerStats';
 import { WeaponSystem, WeaponCtx } from '../systems/WeaponSystem';
 import { SpawnSystem } from '../systems/SpawnSystem';
 import { MetaProgress } from '../systems/MetaProgress';
+import { AudioSystem } from '../systems/AudioSystem';
 import { buildUpgradeOptions } from '../systems/UpgradePool';
 
 // 메인 씬: 모든 시스템 오케스트레이션. 데미지/사망 처리 중앙화.
@@ -114,6 +115,8 @@ export class GameScene extends Phaser.Scene {
     this.startTime = this.time.now;
     this.lastHitTime = this.time.now;
     this.lastRegen = this.time.now;
+
+    AudioSystem.playBgm(this.stageId);
 
     this.showTutorial();
   }
@@ -274,6 +277,7 @@ export class GameScene extends Phaser.Scene {
       e.x += Math.cos(a) * opts.knock * 0.06; e.y += Math.sin(a) * opts.knock * 0.06;
     }
     if (crit || e.def.boss) this.fx.addDmgText(e.x, e.y, amount, crit);
+    AudioSystem.play('enemy_hit'); // 내부 스로틀(50ms) 있음 — 다중 타격 스팸 안전
     if (e.takeDamage(amount)) this.killEnemy(e);
   }
 
@@ -294,6 +298,7 @@ export class GameScene extends Phaser.Scene {
       }
     }
     if (def.boss) this.onBossKilled(def.id);
+    AudioSystem.play('enemy_die');
     this.fx.killBurst(x, y, def.color);
     this.fx.emitBits(x, y, def.color);
   }
@@ -304,6 +309,7 @@ export class GameScene extends Phaser.Scene {
     this.bossOutline?.destroy(); this.bossOutline = undefined;
     this.bossBadge?.destroy(); this.bossBadge = undefined;
     this.bossesKilled++;
+    AudioSystem.playBgm(this.stageId); // 보스전 BGM → 스테이지 BGM 복귀
     this.fx.hitstop(90, () => !this.paused && !this.over); // 보스 처치 묵직하게
     this.cameras.main.flash(200, 80, 255, 80);
     this.cameras.main.shake(300, 0.01);
@@ -336,6 +342,8 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: this.bossOutline, scale: 1.12, duration: 600, yoyo: true, repeat: -1 });
     this.cameras.main.shake(400, 0.008);
     this.cameras.main.flash(160, 255, 80, 80);
+    AudioSystem.play('boss_spawn');
+    AudioSystem.playBgm('boss');
   }
 
   // ---- 픽업 ----
@@ -351,9 +359,10 @@ export class GameScene extends Phaser.Scene {
     const it = item as Pickup;
     if (!it.active) return;
     const kind = it.kind; it.kill();
-    if (kind === 'coffee') this.player.heal(BALANCE.pickups.coffeeHeal);
-    else if (kind === 'magnet') (this.gems.getChildren() as XPGem[]).forEach((g) => { if (g.active) g.forceMagnet(); });
+    if (kind === 'coffee') { this.player.heal(BALANCE.pickups.coffeeHeal); AudioSystem.play('pickup_coffee'); }
+    else if (kind === 'magnet') { (this.gems.getChildren() as XPGem[]).forEach((g) => { if (g.active) g.forceMagnet(); }); AudioSystem.play('pickup_magnet'); }
     else if (kind === 'bomb') { // rm -rf: 화면 내 적 일소
+      AudioSystem.play('pickup_bomb');
       this.cameras.main.flash(250, 255, 80, 80);
       this.enemiesInRadius(this.player.x, this.player.y, 700).forEach((e) => { if (!e.def.boss) this.killEnemy(e); });
     }
@@ -403,6 +412,7 @@ export class GameScene extends Phaser.Scene {
     if (this.player.takeDamage(e.damage, now)) {
       this.lastHitTime = now;
       this.cameras.main.shake(80, 0.004); // 피격 미세 셰이크
+      AudioSystem.play('player_hit');
     }
   };
 
@@ -410,6 +420,7 @@ export class GameScene extends Phaser.Scene {
     const g = gem as XPGem;
     if (!g.active) return;
     this.xp += g.value; g.kill();
+    AudioSystem.playXp();
     if (this.xp >= xpForLevel(this.level)) this.levelUp();
   };
 
@@ -419,12 +430,13 @@ export class GameScene extends Phaser.Scene {
     this.level++;
     this.paused = true;
     this.physics.pause();
+    AudioSystem.play('levelup');
     const slots = CLASSES[(this.registry.get('classId') as string) || 'fullstack'].weaponSlots;
     const opts = buildUpgradeOptions(
       this.weapons, this.stats, slots,
       (id) => { this.weapons.has(id) ? this.weapons.levelUp(id) : this.weapons.add(id); },
       (id) => { this.stats.addPassive(id); this.player.applyStats(); },
-      (mat, res) => this.weapons.evolve(mat, res),
+      (mat, res) => { this.weapons.evolve(mat, res); AudioSystem.play('evolve'); },
       () => this.player.heal(50),
     );
     this.cards.show(opts, () => {
